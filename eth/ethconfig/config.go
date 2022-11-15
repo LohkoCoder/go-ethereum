@@ -18,6 +18,8 @@
 package ethconfig
 
 import (
+	"github.com/ethereum/go-ethereum/consensus/bft"
+	bftbackend "github.com/ethereum/go-ethereum/consensus/bft/backend"
 	"math/big"
 	"os"
 	"os/user"
@@ -36,7 +38,6 @@ import (
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
@@ -224,28 +225,38 @@ func CreateConsensusEngine(stack *node.Node, ethashConfig *ethash.Config, clique
 	var engine consensus.Engine
 	if cliqueConfig != nil {
 		engine = clique.New(cliqueConfig, db)
-	} else {
-		switch ethashConfig.PowMode {
-		case ethash.ModeFake:
-			log.Warn("Ethash used in fake mode")
-		case ethash.ModeTest:
-			log.Warn("Ethash used in test mode")
-		case ethash.ModeShared:
-			log.Warn("Ethash used in shared mode")
-		}
-		engine = ethash.New(ethash.Config{
-			PowMode:          ethashConfig.PowMode,
-			CacheDir:         stack.ResolvePath(ethashConfig.CacheDir),
-			CachesInMem:      ethashConfig.CachesInMem,
-			CachesOnDisk:     ethashConfig.CachesOnDisk,
-			CachesLockMmap:   ethashConfig.CachesLockMmap,
-			DatasetDir:       ethashConfig.DatasetDir,
-			DatasetsInMem:    ethashConfig.DatasetsInMem,
-			DatasetsOnDisk:   ethashConfig.DatasetsOnDisk,
-			DatasetsLockMmap: ethashConfig.DatasetsLockMmap,
-			NotifyFull:       ethashConfig.NotifyFull,
-		}, notify, noverify)
-		engine.(*ethash.Ethash).SetThreads(-1) // Disable CPU mining
+		return beacon.New(engine)
 	}
-	return beacon.New(engine)
+
+	// hardCode for now
+	// ToDo: refactor CreateConsensusEngine function:
+	// 1、add bftConfig
+	config := bft.DefaultBasicConfig
+	nodeKey := stack.Config().NodeKey()
+	return bftbackend.New(config, nodeKey, db)
+
+	//else {
+	//	switch ethashConfig.PowMode {
+	//	case ethash.ModeFake:
+	//		log.Warn("Ethash used in fake mode")
+	//	case ethash.ModeTest:
+	//		log.Warn("Ethash used in test mode")
+	//	case ethash.ModeShared:
+	//		log.Warn("Ethash used in shared mode")
+	//	}
+	//	engine = ethash.New(ethash.Config{
+	//		PowMode:          ethashConfig.PowMode,
+	//		CacheDir:         stack.ResolvePath(ethashConfig.CacheDir),
+	//		CachesInMem:      ethashConfig.CachesInMem,
+	//		CachesOnDisk:     ethashConfig.CachesOnDisk,
+	//		CachesLockMmap:   ethashConfig.CachesLockMmap,
+	//		DatasetDir:       ethashConfig.DatasetDir,
+	//		DatasetsInMem:    ethashConfig.DatasetsInMem,
+	//		DatasetsOnDisk:   ethashConfig.DatasetsOnDisk,
+	//		DatasetsLockMmap: ethashConfig.DatasetsLockMmap,
+	//		NotifyFull:       ethashConfig.NotifyFull,
+	//	}, notify, noverify)
+	//	engine.(*ethash.Ethash).SetThreads(-1) // Disable CPU mining
+	//}
+	//return beacon.New(engine)
 }

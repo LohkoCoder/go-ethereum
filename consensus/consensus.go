@@ -1,20 +1,3 @@
-// Copyright 2017 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
-// Package consensus implements different Ethereum consensus engines.
 package consensus
 
 import (
@@ -56,6 +39,12 @@ type ChainReader interface {
 
 	// GetBlock retrieves a block from the database by hash and number.
 	GetBlock(hash common.Hash, number uint64) *types.Block
+
+	// GetBlockByHash retrieves a block from the database by hash
+	GetBlockByHash(hash common.Hash) *types.Block
+
+	// PreExecuteBlock pre-execute block transactions and validate states
+	PreExecuteBlock(block *types.Block) error
 }
 
 // Engine is an algorithm agnostic consensus engine.
@@ -127,4 +116,37 @@ type PoW interface {
 
 	// Hashrate returns the current mining hashrate of a PoW consensus engine.
 	Hashrate() float64
+}
+
+type BFT interface {
+	Engine
+
+	Start(chain ChainReader, currentBlock func() *types.Block, getBlockByHash func(hash common.Hash) *types.Block, hasBadBlock func(hash common.Hash) bool) error
+
+	// Stop stops the engine
+	Stop() error
+
+	// ChangeEpoch save validators and start height for next epoch
+	ChangeEpoch(epochStartHeight uint64, list []common.Address) error
+}
+
+
+// Interfaces below are used by BFT
+// Broadcaster defines the interface to enqueue blocks to fetcher and find peer
+type Broadcaster interface {
+	// Enqueue add a block into fetcher queue
+	Enqueue(id string, block *types.Block)
+	// FindPeers retrives peers by addresses
+	FindPeers(map[common.Address]bool) map[common.Address]Peer
+	// FindPeer find peer by address
+	FindPeer(target common.Address) Peer
+	// PeerCount return peers number
+	PeerCount() int
+}
+
+
+// Peer defines the interface to communicate with peer
+type Peer interface {
+	// Send sends the message to this peer
+	Send(msgcode uint64, data interface{}) error
 }

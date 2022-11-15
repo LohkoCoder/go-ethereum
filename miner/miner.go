@@ -19,6 +19,7 @@ package miner
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/consensus/bft"
 	"math/big"
 	"sync"
 	"time"
@@ -95,6 +96,17 @@ func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *even
 		stopCh:  make(chan struct{}),
 		worker:  newWorker(config, chainConfig, engine, eth, mux, isLocalBlock, true),
 	}
+	protocol := bft.BftProtocol(chainConfig.Bft.Protocol)
+	switch protocol {
+	// Currently the logic doesn't go here
+	// ToDo: modify the chainConfig at the launch time
+	case bft.BFT_PROTOCOL_BASIC:
+		miner.worker = newWorker(config, chainConfig, engine, eth, mux, isLocalBlock, true)
+		miner.EnablePreseal()
+	default:
+		miner.worker = newWorker(config, chainConfig, engine, eth, mux, isLocalBlock, true)
+	}
+
 	miner.wg.Add(1)
 	go miner.update()
 	return miner
